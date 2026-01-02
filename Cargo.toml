@@ -2,6 +2,13 @@
 name = "depsentry"
 version = "0.1.0"
 edition = "2024"
+authors = ["Mikhail Grishak <m.grishak@yandex.ru>"]
+description = "A proactive supply chain security tool for Blue Teams"
+license = "Apache-2.0"
+repository = "https://github.com/Swek09/DepSentry"
+readme = "README.md"
+keywords = ["security", "supply-chain", "malware", "analysis", "cli"]
+categories = ["command-line-utilities", "development-tools::testing"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
