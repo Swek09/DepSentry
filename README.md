@@ -40,7 +40,7 @@ DepSentry is built with Rust. Ensure you have `cargo` installed.
 
 ```bash
 # 1. Clone the repository
-git clone [https://github.com/egris/depsentry.git](https://github.com/egris/depsentry.git)
+git clone [https://github.com/swek09/depsentry.git](https://github.com/swek09/depsentry.git)
 cd depsentry
 
 # 2. Build in release mode (for maximum speed)
