@@ -56,7 +56,10 @@ jobs:
         run: cargo install cargo-deb
 
       - name: Build Binary
-        run: cargo build --release --strip
+        run: cargo build --release
+
+      - name: Strip Binary
+        run: strip target/release/depsentry
 
       - name: Build Deb Package
         run: cargo deb
