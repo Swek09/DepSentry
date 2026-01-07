@@ -17,6 +17,10 @@ use colored::*;
 
 #[tokio::main]
 async fn main() {
+    // Enable ANSI support on Windows
+    #[cfg(windows)]
+    colored::control::set_virtual_terminal(true).ok();
+
     let cli = Cli::parse();
 
     match &cli.command {
@@ -73,7 +77,9 @@ async fn main() {
             match analyzer.scan(&scan_path, &pkg_metadata, &ecosystem).await {
                 Ok(result) => {
                     report::Reporter::print_report(&result);
-                    report::Reporter::generate_audit_json(&result);
+                    if cli.json {
+                         report::Reporter::generate_audit_json(&result);
+                    }
                     
                     if result.score < 50 { // Score < 50 means Risk > 50 (Critical/High)
                         println!("{}", "Build failed due to critical security risks.".red().bold());
