@@ -1,55 +1,72 @@
 # 🛡️ DepSentry
 
 [![Language](https://img.shields.io/badge/Language-Rust-orange.svg)](https://www.rust-lang.org/)
+[![Release](https://img.shields.io/github/v/release/swek09/depsentry)](https://github.com/swek09/depsentry/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/Security-Supply%20Chain-green)](https://mitre-attack.github.io/)
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
 
 **DepSentry** is a high-performance **Supply Chain Security** tool designed for Blue Teams and DevSecOps.
 
 Unlike standard auditors that only check for CVEs, DepSentry acts as a proactive **middleware**, analyzing packages for malware, obfuscation, and reputation issues **before** they are installed in your environment.
 
----
-
-## 🔥 Key Features
-
-### 1. Hybrid Analysis Engine
-Combines database queries with real-time heuristic analysis:
-* **CVE Scanning**: Instant verification against the Google OSV database.
-* **Malware Heuristics**: Detects suspicious patterns (`eval`, `exec`, shell injection, hardcoded IPs).
-* **Entropy Analysis**: Identifies packed or obfuscated code (Shannon Entropy > 7.5), a common indicator of hidden malware.
-
-### 2. Ephemeral Sandboxing
-* Downloads and extracts packages to a temporary, isolated directory.
-* **Zero Footprint**: Malicious code is never executed or installed on the host machine during analysis.
-* **Zip Slip Protection**: Prevents path traversal attacks during extraction.
-
-### 3. High Performance
-* Built with **Rust** for memory safety and speed.
-* **Parallel Processing**: Powered by `Rayon` and `Tokio`, DepSentry analyzes thousands of files simultaneously, utilizing all CPU cores.
-
-### 4. Supply Chain Guard
-* **Typosquatting Detection**: Warns if a package name mimics popular libraries (e.g., `react` vs `reacct`).
-* **Reputation Check**: Flags packages that are dangerously new (< 7 days old).
+![DepSentry Demo](assets/demo.gif)
+> *Detecting hidden malware and high-entropy payloads in seconds.*
 
 ---
 
-## 🛠️ Installation
+## 📥 Installation
 
-DepSentry is built with Rust. Ensure you have `cargo` installed.
+### Option A: Download Binaries (Recommended)
+You don't need to install Rust. Download the ready-made executables for your OS from the **[Releases Page](https://github.com/swek09/depsentry/releases)**.
+
+| OS | Method | File to Download | Instructions |
+|----|--------|------------------|--------------|
+| **Windows** | **Installer** | `DepSentry-Installer-x64.msi` | **Recommended.** Installs DepSentry and automatically adds it to your `PATH`. |
+| **Ubuntu / Debian** | Package | `DepSentry-Linux-x64.deb` | Install: `sudo dpkg -i DepSentry-Linux-x64.deb` |
+| **Linux (Arch/Other)** | Archive | `DepSentry-Linux-x64.tar.gz` | Extract and move binary to `/usr/local/bin`. |
+
+### Option B: Build from Source
+If you prefer to compile it yourself, ensure you have Rust and Cargo installed.
 
 ```bash
 # 1. Clone the repository
-git clone [https://github.com/swek09/depsentry.git](https://github.com/swek09/depsentry.git)
+git clone https://github.com/swek09/depsentry.git
 cd depsentry
 
 # 2. Build in release mode (for maximum speed)
 cargo build --release
 
-# 3. Run the binary
-./target/release/depsentry --help
-
+# 3. The binary will be located at:
+# Windows: ./target/release/depsentry.exe
+# Linux/Mac: ./target/release/depsentry
 ```
+---
+
+## 🔥 Key Features
+
+### 1. Hybrid Analysis Engine
+
+Combines database queries with real-time heuristic analysis:
+
+* **CVE Scanning**: Instant verification against the Google OSV database.
+* **Malware Heuristics**: Detects suspicious patterns (`eval`, `exec`, shell injection, hardcoded IPs).
+* **Entropy Analysis**: Identifies packed or obfuscated code (Shannon Entropy > 7.5), a common indicator of hidden malware.
+
+### 2. Ephemeral Sandboxing
+
+* Downloads and extracts packages to a temporary, isolated directory.
+* **Zero Footprint**: Malicious code is never executed or installed on the host machine during analysis.
+* **Zip Slip Protection**: Prevents path traversal attacks during extraction.
+
+### 3. High Performance
+
+* Built with **Rust** for memory safety and speed.
+* **Parallel Processing**: Powered by `Rayon` and `Tokio`, DepSentry analyzes thousands of files simultaneously, utilizing all CPU cores.
+
+### 4. Supply Chain Guard
+
+* **Typosquatting Detection**: Warns if a package name mimics popular libraries (e.g., `react` vs `reacct`).
+* **Reputation Check**: Flags packages that are dangerously new (< 7 days old).
 
 ---
 
