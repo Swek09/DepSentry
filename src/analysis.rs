@@ -13,7 +13,7 @@ use walkdir::WalkDir;
 use entropy::shannon_entropy;
 use regex::Regex;
 use serde_json::{json, Value};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use reqwest::Client;
 use chrono::{Utc, Duration};
 use crate::fetcher::PackageMetadata;
@@ -25,7 +25,7 @@ pub struct ScanResult {
     pub findings: Vec<Finding>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Finding {
     pub category: String, // "CVE", "Malware", "Suspicious"
     pub severity: String, // "CRITICAL", "HIGH", "MEDIUM", "LOW"
@@ -37,6 +37,11 @@ pub struct Analyzer {
     client: Client,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ScanOptions {
+    pub check_osv: bool,
+}
+
 impl Analyzer {
     pub fn new() -> Self {
         Self {
@@ -45,6 +50,17 @@ impl Analyzer {
     }
 
     pub async fn scan(&self, path: &Path, metadata: &PackageMetadata, ecosystem: &Ecosystem) -> Result<ScanResult> {
+        self.scan_with_options(path, metadata, ecosystem, ScanOptions { check_osv: true })
+            .await
+    }
+
+    pub async fn scan_with_options(
+        &self,
+        path: &Path,
+        metadata: &PackageMetadata,
+        ecosystem: &Ecosystem,
+        options: ScanOptions,
+    ) -> Result<ScanResult> {
         let mut findings = Vec::new();
 
         // 1. Typosquatting Check
@@ -58,10 +74,12 @@ impl Analyzer {
         }
 
         // 3. OSV Check (Network)
-        println!("Querying OSV database...");
-        match self.check_osv(&metadata.name, &metadata.version, ecosystem).await {
-            Ok(osv_findings) => findings.extend(osv_findings),
-            Err(e) => println!("OSV Check failed: {}", e),
+        if options.check_osv {
+            println!("Querying OSV database...");
+            match self.check_osv(&metadata.name, &metadata.version, ecosystem).await {
+                Ok(osv_findings) => findings.extend(osv_findings),
+                Err(e) => println!("OSV Check failed: {}", e),
+            }
         }
 
         // 4. Local File Analysis (CPU-bound)
@@ -98,6 +116,7 @@ impl Analyzer {
         let target_list = match ecosystem {
             Ecosystem::Npm => popular_npm.as_slice(),
             Ecosystem::Pypi => popular_pypi.as_slice(),
+            Ecosystem::Crates => return None,
         };
 
         for &popular in target_list {
@@ -135,6 +154,7 @@ impl Analyzer {
         let package_type = match ecosystem {
             Ecosystem::Npm => "npm",
             Ecosystem::Pypi => "PyPI",
+            Ecosystem::Crates => "crates.io",
         };
 
         let query = json!({

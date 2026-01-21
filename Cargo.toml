@@ -1,6 +1,6 @@
 [package]
 name = "depsentry"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2024"
 authors = ["Mikhail Grishak <m.grishak@yandex.ru>"]
 description = "A proactive supply chain security tool for Blue Teams"
@@ -10,12 +10,16 @@ readme = "README.md"
 keywords = ["security", "supply-chain", "malware", "analysis", "cli"]
 categories = ["command-line-utilities", "development-tools::testing"]
 
+[features]
+ds-alias = []
+
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 tokio = { version = "1.3", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "blocking"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9"
 rayon = "1.8"
 entropy = "0.4.1"
 tempfile = "3.8"
@@ -30,6 +34,8 @@ thiserror = "1.0"
 anyhow = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 strsim = "0.10"
+blake3 = "1.5"
+notify = "6.1"
 
 [[bin]]
 name = "depsentry"
@@ -38,3 +44,4 @@ path = "src/main.rs"
 [[bin]]
 name = "ds"
 path = "src/main.rs"
+required-features = ["ds-alias"]

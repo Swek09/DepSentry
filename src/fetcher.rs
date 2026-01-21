@@ -31,7 +31,7 @@ impl Fetcher {
     pub fn new() -> Self {
         Self {
             client: Client::builder()
-                .user_agent("depsentry-security-scanner/0.1.0")
+                .user_agent("depsentry-security-scanner/0.2.0")
                 .build()
                 .expect("Failed to create HTTP client"),
         }
@@ -43,6 +43,7 @@ impl Fetcher {
         let (url, filename, meta) = match ecosystem {
             Ecosystem::Npm => self.get_npm_metadata(name, version).await?,
             Ecosystem::Pypi => self.get_pypi_metadata(name, version).await?,
+            Ecosystem::Crates => self.get_crates_metadata(name, version).await?,
         };
 
         println!("Downloading package version {} from {}...", meta.version, url);
@@ -64,6 +65,7 @@ impl Fetcher {
                      bail!("Unsupported file format for PyPI: {}", filename);
                 }
             }
+            Ecosystem::Crates => self.extract_tar_gz(&content, &temp_dir)?,
         }
 
         Ok((temp_dir, meta))
@@ -146,6 +148,51 @@ impl Fetcher {
             version: info_version,
             published_at,
         }))
+    }
+
+    async fn get_crates_metadata(
+        &self,
+        name: &str,
+        version: Option<&str>,
+    ) -> Result<(String, String, PackageMetadata)> {
+        // crates.io API: /api/v1/crates/<name>
+        let url = format!("https://crates.io/api/v1/crates/{}", name);
+        let resp: Value = self.client.get(&url).send().await?.json().await?;
+
+        let versions = resp["versions"]
+            .as_array()
+            .context("No versions in crates.io response")?;
+        if versions.is_empty() {
+            bail!("No versions found for crate {}", name);
+        }
+
+        let chosen = if let Some(v) = version {
+            versions
+                .iter()
+                .find(|x| x["num"].as_str() == Some(v))
+                .context("Requested version not found on crates.io")?
+        } else {
+            // Usually first is newest
+            &versions[0]
+        };
+
+        let ver = chosen["num"].as_str().unwrap_or("unknown").to_string();
+        let dl = format!("https://crates.io/api/v1/crates/{}/{}/download", name, ver);
+        let filename = format!("{}-{}.crate", name, ver);
+
+        let published_at = chosen["created_at"]
+            .as_str()
+            .and_then(|t| DateTime::parse_from_rfc3339(t).ok().map(|dt| dt.with_timezone(&Utc)));
+
+        Ok((
+            dl,
+            filename,
+            PackageMetadata {
+                name: name.to_string(),
+                version: ver,
+                published_at,
+            },
+        ))
     }
 
     fn extract_tar_gz(&self, data: &[u8], target: &Path) -> Result<()> {

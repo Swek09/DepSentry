@@ -1,129 +1,152 @@
 # 🛡️ DepSentry
 
 [![Language](https://img.shields.io/badge/Language-Rust-orange.svg)](https://www.rust-lang.org/)
-[![Release](https://img.shields.io/github/v/release/swek09/depsentry)](https://github.com/swek09/depsentry/releases)
+[![Release](https://img.shields.io/github/v/release/Swek09/DepSentry)](https://github.com/Swek09/DepSentry/releases)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/Security-Supply%20Chain-green)](https://mitre-attack.github.io/)
 
-**DepSentry** is a high-performance **Supply Chain Security** tool designed for Blue Teams and DevSecOps.
+**DepSentry** is a fast Rust CLI for **proactive supply-chain security**.
 
-Unlike standard auditors that only check for CVEs, DepSentry acts as a proactive **middleware**, analyzing packages for malware, obfuscation, and reputation issues **before** they are installed in your environment.
+Most tools stop at “does it have a CVE?”. DepSentry goes further: it **downloads packages to an ephemeral sandbox** and runs **static heuristics** (entropy/obfuscation, suspicious scripts, network indicators, etc.) **before** you install them.
 
 ![DepSentry Demo](assets/demo.gif)
-> *Detecting hidden malware and high-entropy payloads in seconds.*
+> Static analysis in seconds. No execution. No install.
+
+---
+
+## ✨ What DepSentry does (today)
+
+DepSentry has two “tracks”:
+
+### 1) On-demand scanning
+- `depsentry check` — scan **one package** (remote) or a **local directory**
+- `depsentry scan` — scan **dependencies from a manifest** (basic parsing)
+
+### 2) Continuous supervision
+- `depsentry firewall ...` — a local daemon + project registry (stage 0)
+  - start/stop/restart daemon
+  - add/remove/list projects
+  - status + logs
 
 ---
 
 ## 📥 Installation
 
-### Option A: Download Binaries (Recommended)
-You don't need to install Rust. Download the ready-made executables for your OS from the **[Releases Page](https://github.com/swek09/depsentry/releases)**.
+### Option A: Download binaries (recommended)
+Grab a prebuilt binary from Releases:
+- Windows: `DepSentry-Installer-x64.msi`
+- Ubuntu/Debian: `DepSentry-Linux-x64.deb`
+- Linux (other): `DepSentry-Linux-x64.tar.gz`
 
-| OS | Method | File to Download | Instructions |
-|----|--------|------------------|--------------|
-| **Windows** | **Installer** | `DepSentry-Installer-x64.msi` | **Recommended.** Installs DepSentry and automatically adds it to your `PATH`. |
-| **Ubuntu / Debian** | Package | `DepSentry-Linux-x64.deb` | Install: `sudo dpkg -i DepSentry-Linux-x64.deb` |
-| **Linux (Arch/Other)** | Archive | `DepSentry-Linux-x64.tar.gz` | Extract and move binary to `/usr/local/bin`. |
-
-### Option B: Build from Source
-If you prefer to compile it yourself, ensure you have Rust and Cargo installed.
-
+### Option B: Build from source
 ```bash
-# 1. Clone the repository
-git clone https://github.com/swek09/depsentry.git
-cd depsentry
-
-# 2. Build in release mode (for maximum speed)
+git clone https://github.com/Swek09/DepSentry.git
+cd DepSentry
 cargo build --release
-
-# 3. The binary will be located at:
-# Windows: ./target/release/depsentry.exe
-# Linux/Mac: ./target/release/depsentry
-```
----
-
-## 🔥 Key Features
-
-### 1. Hybrid Analysis Engine
-
-Combines database queries with real-time heuristic analysis:
-
-* **CVE Scanning**: Instant verification against the Google OSV database.
-* **Malware Heuristics**: Detects suspicious patterns (`eval`, `exec`, shell injection, hardcoded IPs).
-* **Entropy Analysis**: Identifies packed or obfuscated code (Shannon Entropy > 7.5), a common indicator of hidden malware.
-
-### 2. Ephemeral Sandboxing
-
-* Downloads and extracts packages to a temporary, isolated directory.
-* **Zero Footprint**: Malicious code is never executed or installed on the host machine during analysis.
-* **Zip Slip Protection**: Prevents path traversal attacks during extraction.
-
-### 3. High Performance
-
-* Built with **Rust** for memory safety and speed.
-* **Parallel Processing**: Powered by `Rayon` and `Tokio`, DepSentry analyzes thousands of files simultaneously, utilizing all CPU cores.
-
-### 4. Supply Chain Guard
-
-* **Typosquatting Detection**: Warns if a package name mimics popular libraries (e.g., `react` vs `reacct`).
-* **Reputation Check**: Flags packages that are dangerously new (< 7 days old).
+# binary: ./target/release/depsentry
+````
 
 ---
 
 ## 🚀 Usage
 
-### Mode A: Check a Single Package
+### A) Check a single package (quality gate)
 
-Analyze a remote package without installing it. Useful for quick vetting.
+Use this when you want to vet one dependency quickly.
 
 ```bash
-# Auto-detect ecosystem (NPM/PyPI)
+# Auto-detect ecosystem (NPM / PyPI) if possible
 depsentry check axios
 
-# Specify version and type explicitly
-depsentry check requests --version 2.31.0 --type pip
+# Explicit ecosystem + version
+depsentry check requests --type pypi --version 2.31.0
 
+# Save JSON report (audit.json)
+depsentry check axios --json
 ```
 
-### Mode B: Project Audit (CI/CD)
+**Behavior**
 
-Scan an entire manifest (`package.json`) in the current directory. This mode is designed for CI/CD pipelines as a Quality Gate.
+* Prints a report for the package.
+* Exits with **code 1** if **score < 50** (quality gate).
+
+> Score is **0–100**. Higher is better. Lower means “more suspicious / more risk”.
+
+---
+
+### B) Scan a project manifest (audit without hard fail)
+
+Use this in CI/CD to audit dependencies from a manifest.
 
 ```bash
-# Run in the root of your project
-depsentry scan
-
+depsentry scan --path ./package.json
+# or
+depsentry scan --path ./requirements.txt
 ```
 
-**Output Example:**
+**Behavior**
 
-```text
-Risk Score: 100 (CRITICAL)
-+----------+----------+-------------------------------------+
-| Severity | Category | Description                         |
-+----------+----------+-------------------------------------+
-| HIGH     | CVE      | GHSA-4hjh: Axios vulnerable to DoS  |
-| HIGH     | Malware  | Suspicious entropy in dist/index.js |
-+----------+----------+-------------------------------------+
+* Parses dependencies (basic parsing for now).
+* Downloads each dependency and scans it.
+* Prints a report **only if score < 80** (noise reduction).
+* Does **not** “fail the build” by default (no hard exit gate in this mode yet).
 
+---
+
+### C) Firewall mode (daemon) — stage 0
+
+```bash
+# daemon lifecycle
+depsentry firewall start
+depsentry firewall stop
+depsentry firewall restart
+
+# project registry
+depsentry firewall add ~/work/my-api
+depsentry firewall ls
+depsentry firewall status my-api
+depsentry firewall logs my-api --lines 200
+depsentry firewall rm my-api
+depsentry firewall scan my-api --deep
+depsentry firewall scan my-api --cve-only
+depsentry firewall save
+depsentry firewall resurrect
 ```
 
 ---
 
-## 🏗️ Architecture
+## 🔍 What is being checked (analysis engine)
 
-DepSentry follows a modular "Pipeline" architecture:
+DepSentry combines vulnerability lookups with static heuristics:
 
-1. **CLI Parser (`clap`)**: Handles user input and flags.
-2. **Fetcher Module (`reqwest`)**: Asynchronously downloads metadata and tarballs from NPM/PyPI registries.
-3. **Sandbox Manager**: Creates secure temporary directories (`tempfile`).
-4. **Analysis Engine (`rayon`)**:
-* *Static Analyzer*: Regex-based signature matching.
-* *Entropy Calculator*: Shannon entropy math.
-* *OSV Client*: API queries for vulnerabilities.
+### Vulnerabilities (OSV)
 
+* Queries OSV by `(ecosystem, name, version)` when network is available.
+* If OSV/network is unavailable, the check is skipped (scan continues).
 
-5. **Reporter**: Aggregates results into a Risk Score (0-100) and renders the report.
+### Heuristics (static, no execution)
+
+* **Typosquatting**: simple similarity (Levenshtein) vs a small popular list
+* **Reputation**: flags very new releases (e.g., < 7 days old)
+* **Entropy**: high-entropy blobs (packed/obfuscated content)
+* **Suspicious patterns**: `eval/exec`
+* **NPM lifecycle scripts**: suspicious install hooks in `package.json`
+* **Network indicators**: hardcoded IPs / socket patterns (best-effort)
+
+Everything runs in an **ephemeral sandbox directory**. DepSentry does **not** execute package code.
+
+---
+
+## 🧱 Architecture (high level)
+
+DepSentry is organized as small modules called from the CLI:
+
+* `cli.rs` — Clap command tree (`check`, `scan`, `firewall ...`)
+* `ecosystem.rs` — NPM/PyPI detection and helpers
+* `fetcher.rs` — registry metadata lookup, download, extraction (temp dir)
+* `analysis.rs` — heuristics + OSV lookup + scoring
+* `report.rs` — terminal table + optional `audit.json`
+* `firewall.rs` — daemon + project registry + logs (stage 0)
 
 ---
 
@@ -131,6 +154,4 @@ DepSentry follows a modular "Pipeline" architecture:
 
 Copyright 2026 Mikhail Grishak.
 
-Licensed under the **Apache License, Version 2.0**.
-
-See `LICENSE` file for more details.
+Licensed under the **Apache License, Version 2.0** — see `LICENSE`.

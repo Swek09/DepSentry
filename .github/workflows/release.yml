@@ -23,7 +23,7 @@ jobs:
         run: cargo install cargo-wix
 
       - name: Build Binary
-        run: cargo build --release
+        run: cargo build --release --features ds-alias
 
       - name: Build MSI Installer
         run: cargo wix --no-build --nocapture
@@ -56,7 +56,7 @@ jobs:
         run: cargo install cargo-deb
 
       - name: Build Binary
-        run: cargo build --release
+        run: cargo build --release --features ds-alias
 
       - name: Strip Binary
         run: strip target/release/depsentry

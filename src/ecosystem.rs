@@ -5,11 +5,13 @@
 */
 
 use std::path::Path;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Ecosystem {
     Npm,
     Pypi,
+    Crates,
 }
 
 impl Ecosystem {
@@ -29,6 +31,10 @@ impl Ecosystem {
             return Some(Ecosystem::Pypi);
         }
 
+        if path.join("Cargo.toml").exists() || path.join("Cargo.lock").exists() {
+            return Some(Ecosystem::Crates);
+        }
+
         None
     }
 
@@ -36,6 +42,7 @@ impl Ecosystem {
         match s.to_lowercase().as_str() {
             "npm" | "node" | "javascript" | "js" => Some(Ecosystem::Npm),
             "pypi" | "pip" | "python" | "py" => Some(Ecosystem::Pypi),
+            "cargo" | "crates" | "crates.io" | "rust" => Some(Ecosystem::Crates),
             _ => None,
         }
     }
