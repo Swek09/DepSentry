@@ -31,7 +31,7 @@ impl Fetcher {
     pub fn new() -> Self {
         Self {
             client: Client::builder()
-                .user_agent("depsentry-security-scanner/0.2.0")
+                .user_agent("depsentry-security-scanner/0.2.1")
                 .build()
                 .expect("Failed to create HTTP client"),
         }

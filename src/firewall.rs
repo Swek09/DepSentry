@@ -445,7 +445,7 @@ fn notify_webhook(event_type: &str, message: &str, payload: serde_json::Value) -
     });
 
     let client = reqwest::blocking::Client::builder()
-        .user_agent("depsentry-firewall/0.2.0")
+        .user_agent("depsentry-firewall/0.2.1")
         .build()
         .context("Failed to create webhook client")?;
     client

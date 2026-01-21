@@ -9,3 +9,7 @@
 - Deep scans on dependency diffs with cache, timeouts, and limits.
 - Webhook notifications (dedup + vuln-id ignore list).
 - Autostart helpers (generate/install/uninstall).
+
+## v0.2.1
+
+- Fixed GitHub release workflow: build with `ds-alias`, avoid `assets/` directory collision, and prevent rebuild in `cargo deb`.

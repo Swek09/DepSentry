@@ -1,6 +1,6 @@
 [package]
 name = "depsentry"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Mikhail Grishak <m.grishak@yandex.ru>"]
 description = "A proactive supply chain security tool for Blue Teams"
