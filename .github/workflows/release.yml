@@ -31,16 +31,16 @@ jobs:
       - name: Prepare Artifacts
         shell: pwsh
         run: |
-          mkdir assets
+          New-Item -ItemType Directory -Force release-assets | Out-Null
           $msi = Get-ChildItem -Path target/wix/*.msi | Select-Object -First 1
-          cp $msi.FullName assets/DepSentry-Installer-x64.msi
+          cp $msi.FullName release-assets/DepSentry-Installer-x64.msi
 
       - name: Upload Windows Assets
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            assets/DepSentry-Installer-x64.msi
+            release-assets/DepSentry-Installer-x64.msi
 
   # ====================================================
   # 2. LINUX (DEB + TAR.GZ)
@@ -59,21 +59,23 @@ jobs:
         run: cargo build --release --features ds-alias
 
       - name: Strip Binary
-        run: strip target/release/depsentry
+        run: |
+          strip target/release/depsentry || true
+          strip target/release/ds || true
 
       - name: Build Deb Package
-        run: cargo deb
+        run: cargo deb --no-build
 
       - name: Prepare Artifacts
         run: |
-          mkdir assets
-          tar -czvf assets/DepSentry-Linux-x64.tar.gz -C target/release depsentry
-          cp target/debian/*.deb assets/DepSentry-Linux-x64.deb
+          mkdir -p release-assets
+          tar -czvf release-assets/DepSentry-Linux-x64.tar.gz -C target/release depsentry
+          cp target/debian/*.deb release-assets/DepSentry-Linux-x64.deb
 
       - name: Upload Linux Assets
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            assets/DepSentry-Linux-x64.tar.gz
-            assets/DepSentry-Linux-x64.deb
+            release-assets/DepSentry-Linux-x64.tar.gz
+            release-assets/DepSentry-Linux-x64.deb
