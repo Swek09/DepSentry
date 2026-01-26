@@ -103,7 +103,7 @@ jobs:
         working-directory: npm
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          npm version --no-git-tag-version "$VERSION"
+          npm version --no-git-tag-version --allow-same-version "$VERSION"
       - name: Publish to npm
         working-directory: npm
         env:
