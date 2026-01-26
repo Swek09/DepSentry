@@ -91,6 +91,9 @@ jobs:
   publish-npm:
     name: Publish npm package
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     needs:
       - release-windows
       - release-linux
@@ -105,6 +108,13 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           npm version --no-git-tag-version --allow-same-version "$VERSION"
+      - name: Prepare npm config for OIDC
+        run: |
+          echo "registry=https://registry.npmjs.org/" > "$RUNNER_TEMP/empty.npmrc"
       - name: Publish to npm
         working-directory: npm
+        env:
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/empty.npmrc
+          NODE_AUTH_TOKEN: ""
+          NPM_TOKEN: ""
         run: npm publish --access public --provenance
