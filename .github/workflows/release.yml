@@ -109,12 +109,6 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           npm version --no-git-tag-version --allow-same-version "$VERSION"
-      - name: Prepare npm config for OIDC
-        run: |
-          echo "registry=https://registry.npmjs.org/" > "$RUNNER_TEMP/empty.npmrc"
-          echo "@swek09:registry=https://registry.npmjs.org/" >> "$RUNNER_TEMP/empty.npmrc"
       - name: Publish to npm
         working-directory: npm
-        env:
-          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/empty.npmrc
         run: npm publish --access public --provenance
