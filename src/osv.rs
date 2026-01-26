@@ -30,6 +30,7 @@ pub fn query_osv_vulns(deps: &[Dependency]) -> Result<Vec<OsvVuln>> {
                 crate::ecosystem::Ecosystem::Npm => "npm",
                 crate::ecosystem::Ecosystem::Pypi => "PyPI",
                 crate::ecosystem::Ecosystem::Crates => "crates.io",
+                crate::ecosystem::Ecosystem::Java => "Maven",
             };
             json!({
                 "version": d.version,
@@ -43,7 +44,7 @@ pub fn query_osv_vulns(deps: &[Dependency]) -> Result<Vec<OsvVuln>> {
     }
 
     let client = Client::builder()
-        .user_agent("depsentry-firewall/0.2.2")
+        .user_agent("depsentry-firewall/0.2.3")
         .build()
         .context("Failed to create HTTP client")?;
 

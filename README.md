@@ -20,7 +20,7 @@ DepSentry has two “tracks”:
 
 ### 1) On-demand scanning
 - `depsentry check` — scan **one package** (remote) or a **local directory**
-- `depsentry scan` — scan **dependencies from a manifest** (basic parsing, npm/pypi/cargo)
+- `depsentry scan` — scan **dependencies from a manifest** (basic parsing, npm/pypi/cargo/java)
 
 ### 2) Continuous supervision
 - `depsentry firewall ...` — a local daemon + project registry (stage 0)
@@ -55,12 +55,13 @@ cargo build --release
 Use this when you want to vet one dependency quickly.
 
 ```bash
-# Auto-detect ecosystem (NPM / PyPI / Cargo) if possible
+# Auto-detect ecosystem (NPM / PyPI / Cargo / Java) if possible
 depsentry check axios
 
 # Explicit ecosystem + version
 depsentry check requests --type pypi --version 2.31.0
 depsentry check serde --type cargo --version 1.0.197
+depsentry check org.slf4j:slf4j-api --type java --version 1.7.36
 
 # Save JSON report (audit.json)
 depsentry check axios --json
@@ -85,6 +86,10 @@ depsentry scan --path ./package.json
 depsentry scan --path ./requirements.txt
 # or
 depsentry scan --path ./Cargo.lock
+# or
+depsentry scan --path ./pom.xml
+# or
+depsentry scan --path ./build.gradle
 ```
 
 **Behavior**

@@ -116,7 +116,7 @@ impl Analyzer {
         let target_list = match ecosystem {
             Ecosystem::Npm => popular_npm.as_slice(),
             Ecosystem::Pypi => popular_pypi.as_slice(),
-            Ecosystem::Crates => return None,
+            Ecosystem::Crates | Ecosystem::Java => return None,
         };
 
         for &popular in target_list {
@@ -155,6 +155,7 @@ impl Analyzer {
             Ecosystem::Npm => "npm",
             Ecosystem::Pypi => "PyPI",
             Ecosystem::Crates => "crates.io",
+            Ecosystem::Java => "Maven",
         };
 
         let query = json!({
@@ -237,7 +238,9 @@ impl Analyzer {
         // 2. Standard File Analysis
         if let Some(ext) = path.extension() {
              let ext_str = ext.to_string_lossy();
-             if !["js", "py", "sh", "ts", "rs"].contains(&ext_str.as_ref()) && filename != "package.json" {
+             if !["js", "py", "sh", "ts", "rs", "java", "kt", "class"].contains(&ext_str.as_ref())
+                && filename != "package.json"
+             {
                  return findings;
              }
         } else if filename != "package.json" {
@@ -250,15 +253,20 @@ impl Analyzer {
         };
 
         // Entropy Check
-        let entropy = shannon_entropy(&content);
-        if entropy > 7.5 && !filename.ends_with(".png") && !filename.ends_with(".jpg") { 
-            if !filename.contains(".min.") && !filename.contains("package.json") { 
-                findings.push(Finding {
-                    category: "Suspicious".to_string(),
-                    severity: "MEDIUM".to_string(),
-                    description: format!("High entropy detected ({:.2}). Possible packed/obfuscated code.", entropy),
-                    file_path: Some(path.to_path_buf()),
-                });
+        if !filename.ends_with(".class") {
+            let entropy = shannon_entropy(&content);
+            if entropy > 7.5 && !filename.ends_with(".png") && !filename.ends_with(".jpg") {
+                if !filename.contains(".min.") && !filename.contains("package.json") {
+                    findings.push(Finding {
+                        category: "Suspicious".to_string(),
+                        severity: "MEDIUM".to_string(),
+                        description: format!(
+                            "High entropy detected ({:.2}). Possible packed/obfuscated code.",
+                            entropy
+                        ),
+                        file_path: Some(path.to_path_buf()),
+                    });
+                }
             }
         }
 

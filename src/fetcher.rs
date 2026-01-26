@@ -14,6 +14,7 @@ use flate2::read::GzDecoder;
 use tar::Archive;
 use zip::ZipArchive;
 use chrono::{DateTime, Utc};
+use regex::Regex;
 use crate::ecosystem::Ecosystem;
 
 #[derive(Debug, Clone)]
@@ -31,7 +32,7 @@ impl Fetcher {
     pub fn new() -> Self {
         Self {
             client: Client::builder()
-                .user_agent("depsentry-security-scanner/0.2.2")
+                .user_agent("depsentry-security-scanner/0.2.3")
                 .build()
                 .expect("Failed to create HTTP client"),
         }
@@ -44,6 +45,7 @@ impl Fetcher {
             Ecosystem::Npm => self.get_npm_metadata(name, version).await?,
             Ecosystem::Pypi => self.get_pypi_metadata(name, version).await?,
             Ecosystem::Crates => self.get_crates_metadata(name, version).await?,
+            Ecosystem::Java => self.get_maven_metadata(name, version).await?,
         };
 
         println!("Downloading package version {} from {}...", meta.version, url);
@@ -66,6 +68,7 @@ impl Fetcher {
                 }
             }
             Ecosystem::Crates => self.extract_tar_gz(&content, &temp_dir)?,
+            Ecosystem::Java => self.extract_zip(&content, &temp_dir)?,
         }
 
         Ok((temp_dir, meta))
@@ -195,6 +198,55 @@ impl Fetcher {
         ))
     }
 
+    async fn get_maven_metadata(
+        &self,
+        name: &str,
+        version: Option<&str>,
+    ) -> Result<(String, String, PackageMetadata)> {
+        let (group_id, artifact_id) = parse_maven_name(name)?;
+        let group_path = group_id.replace('.', "/");
+        let base = format!(
+            "https://repo1.maven.org/maven2/{}/{}/",
+            group_path, artifact_id
+        );
+
+        let ver = if let Some(v) = version {
+            v.to_string()
+        } else {
+            let meta_url = format!("{}maven-metadata.xml", base);
+            let xml = self
+                .client
+                .get(&meta_url)
+                .send()
+                .await?
+                .error_for_status()?
+                .text()
+                .await?;
+            parse_maven_latest_version(&xml)
+                .with_context(|| format!("No versions found in {}", meta_url))?
+        };
+
+        let sources_filename = format!("{}-{}-sources.jar", artifact_id, ver);
+        let jar_filename = format!("{}-{}.jar", artifact_id, ver);
+        let sources_url = format!("{}{}/{}", base, ver, sources_filename);
+        let jar_url = format!("{}{}/{}", base, ver, jar_filename);
+
+        let (url, filename) = match self.client.head(&sources_url).send().await {
+            Ok(resp) if resp.status().is_success() => (sources_url, sources_filename),
+            _ => (jar_url, jar_filename),
+        };
+
+        Ok((
+            url,
+            filename,
+            PackageMetadata {
+                name: name.to_string(),
+                version: ver,
+                published_at: None,
+            },
+        ))
+    }
+
     fn extract_tar_gz(&self, data: &[u8], target: &Path) -> Result<()> {
         let decoder = GzDecoder::new(Cursor::new(data));
         let mut archive = Archive::new(decoder);
@@ -249,4 +301,31 @@ impl Fetcher {
         }
         Ok(())
     }
+}
+
+fn parse_maven_name(name: &str) -> Result<(String, String)> {
+    let Some((group_id, artifact_id)) = name.split_once(':') else {
+        bail!("Java packages must be in groupId:artifactId format");
+    };
+    if group_id.trim().is_empty() || artifact_id.trim().is_empty() {
+        bail!("Java packages must be in groupId:artifactId format");
+    }
+    Ok((group_id.trim().to_string(), artifact_id.trim().to_string()))
+}
+
+fn parse_maven_latest_version(xml: &str) -> Option<String> {
+    let re_latest = Regex::new(r"<latest>\s*([^<\s]+)\s*</latest>").ok()?;
+    if let Some(cap) = re_latest.captures(xml) {
+        return Some(cap[1].to_string());
+    }
+    let re_release = Regex::new(r"<release>\s*([^<\s]+)\s*</release>").ok()?;
+    if let Some(cap) = re_release.captures(xml) {
+        return Some(cap[1].to_string());
+    }
+    let re_version = Regex::new(r"<version>\s*([^<\s]+)\s*</version>").ok()?;
+    let mut versions = Vec::new();
+    for cap in re_version.captures_iter(xml) {
+        versions.push(cap[1].to_string());
+    }
+    versions.last().cloned()
 }

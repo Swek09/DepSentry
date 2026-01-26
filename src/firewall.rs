@@ -445,7 +445,7 @@ fn notify_webhook(event_type: &str, message: &str, payload: serde_json::Value) -
     });
 
     let client = reqwest::blocking::Client::builder()
-        .user_agent("depsentry-firewall/0.2.2")
+        .user_agent("depsentry-firewall/0.2.3")
         .build()
         .context("Failed to create webhook client")?;
     client
@@ -1583,10 +1583,14 @@ fn is_dependency_file(filename: &str) -> bool {
         || f == "cargo.toml"
         || f == "package.json"
         || f == "pyproject.toml"
+        || f == "pom.xml"
+        || f == "build.gradle"
+        || f == "build.gradle.kts"
+        || f == "gradle.lockfile"
     {
         return true;
     }
-    f.starts_with("requirements") && f.ends_with(".txt")
+    (f.starts_with("requirements") && f.ends_with(".txt")) || f.ends_with(".lockfile")
 }
 
 fn match_event_to_project(projects: &[Project], path: &Path) -> Option<(String, String)> {

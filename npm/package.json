@@ -1,17 +1,33 @@
 {
   "name": "@swek09/depsentry",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "DepSentry CLI (prebuilt binaries)",
+  "keywords": [
+    "security",
+    "supply-chain",
+    "dependency",
+    "vulnerability",
+    "cve",
+    "osv",
+    "sast",
+    "cli",
+    "rust"
+  ],
   "license": "Apache-2.0",
+  "homepage": "https://depsentry.com/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Swek09/DepSentry.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Swek09/DepSentry/issues"
   },
   "publishConfig": {
     "access": "public"
   },
   "bin": {
-    "depsentry": "bin/depsentry.js"
+    "depsentry": "bin/depsentry.js",
+    "ds": "bin/depsentry.js"
   },
   "scripts": {
     "postinstall": "node install.js"
@@ -26,7 +42,8 @@
   "files": [
     "bin/depsentry.js",
     "install.js",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18"

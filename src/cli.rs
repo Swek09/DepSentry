@@ -25,7 +25,7 @@ pub enum Commands {
         /// Name of the package to check
         name: String,
 
-        /// Ecosystem (npm, pypi, cargo). If not provided, autodetection is attempted.
+        /// Ecosystem (npm, pypi, cargo, java). If not provided, autodetection is attempted.
         #[arg(long, short)]
         r#type: Option<String>,
 
@@ -33,7 +33,7 @@ pub enum Commands {
         #[arg(long, short)]
         version: Option<String>,
     },
-    /// Scan all dependencies in a manifest file (package.json / requirements.txt / Cargo.toml / Cargo.lock)
+    /// Scan all dependencies in a manifest file (package.json / requirements.txt / Cargo.toml / Cargo.lock / pom.xml / build.gradle)
     Scan {
         /// Path to manifest file. Autodetected if not provided.
         #[arg(long, short)]

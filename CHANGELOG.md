@@ -19,3 +19,10 @@
 - Added Cargo support for `depsentry check` and `depsentry scan` (Cargo.toml/Cargo.lock).
 - Added npm package wrapper with GitHub Release binary downloads.
 - Updated release pipeline to publish npm package and include raw binaries.
+
+## v0.2.3
+
+- Added Java/Maven support for `depsentry check` and `depsentry scan` (pom.xml/Gradle/lockfiles).
+- Added Maven Central fetcher with OSV mapping for Java packages.
+- Improved npm package metadata (homepage, keywords, LICENSE, badges) and alias `ds`.
+- Switched npm publish workflow to Trusted Publishing with provenance.

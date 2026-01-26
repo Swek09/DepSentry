@@ -12,6 +12,7 @@ pub enum Ecosystem {
     Npm,
     Pypi,
     Crates,
+    Java,
 }
 
 impl Ecosystem {
@@ -35,6 +36,14 @@ impl Ecosystem {
             return Some(Ecosystem::Crates);
         }
 
+        if path.join("pom.xml").exists()
+            || path.join("build.gradle").exists()
+            || path.join("build.gradle.kts").exists()
+            || path.join("gradle.lockfile").exists()
+        {
+            return Some(Ecosystem::Java);
+        }
+
         None
     }
 
@@ -43,6 +52,7 @@ impl Ecosystem {
             "npm" | "node" | "javascript" | "js" => Some(Ecosystem::Npm),
             "pypi" | "pip" | "python" | "py" => Some(Ecosystem::Pypi),
             "cargo" | "crates" | "crates.io" | "rust" => Some(Ecosystem::Crates),
+            "java" | "maven" | "mvn" => Some(Ecosystem::Java),
             _ => None,
         }
     }

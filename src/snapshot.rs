@@ -142,6 +142,45 @@ pub fn collect_snapshot_inputs(project_dir: &Path) -> Result<SnapshotInputs> {
         }
     }
 
+    // Java ecosystem
+    let pom = project_dir.join("pom.xml");
+    if pom.exists() {
+        files.push(pom.clone());
+        for dep in parse_pom_xml(&pom)? {
+            deps.insert(dep);
+        }
+    }
+
+    let gradle = project_dir.join("build.gradle");
+    let gradle_kts = project_dir.join("build.gradle.kts");
+    if gradle.exists() {
+        files.push(gradle.clone());
+        for dep in parse_gradle_build(&gradle)? {
+            deps.insert(dep);
+        }
+    }
+    if gradle_kts.exists() {
+        files.push(gradle_kts.clone());
+        for dep in parse_gradle_build(&gradle_kts)? {
+            deps.insert(dep);
+        }
+    }
+
+    let gradle_lock = project_dir.join("gradle.lockfile");
+    if gradle_lock.exists() {
+        files.push(gradle_lock.clone());
+        for dep in parse_gradle_lockfile(&gradle_lock)? {
+            deps.insert(dep);
+        }
+    }
+
+    for lock in find_gradle_lockfiles(project_dir)? {
+        files.push(lock.clone());
+        for dep in parse_gradle_lockfile(&lock)? {
+            deps.insert(dep);
+        }
+    }
+
     Ok(SnapshotInputs {
         files,
         dependencies: deps.into_iter().collect(),
@@ -154,6 +193,18 @@ pub fn parse_cargo_lock_file(path: &Path) -> Result<Vec<Dependency>> {
 
 pub fn parse_cargo_toml_file(path: &Path) -> Result<Vec<Dependency>> {
     parse_cargo_toml(path)
+}
+
+pub fn parse_pom_xml_file(path: &Path) -> Result<Vec<Dependency>> {
+    parse_pom_xml(path)
+}
+
+pub fn parse_gradle_build_file(path: &Path) -> Result<Vec<Dependency>> {
+    parse_gradle_build(path)
+}
+
+pub fn parse_gradle_lockfile(path: &Path) -> Result<Vec<Dependency>> {
+    parse_gradle_lockfile_inner(path)
 }
 
 fn parse_cargo_lock(path: &Path) -> Result<Vec<Dependency>> {
@@ -399,6 +450,186 @@ fn parse_yarn_lock(path: &Path) -> Result<Vec<Dependency>> {
     Ok(deps)
 }
 
+fn parse_pom_xml(path: &Path) -> Result<Vec<Dependency>> {
+    let content = fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let props = parse_pom_properties(&content);
+    let managed = parse_pom_dependency_management(&content, &props);
+    let xml_no_mgmt = strip_dependency_management(&content);
+
+    let mut deps = parse_pom_dependency_blocks(&xml_no_mgmt, &props);
+    for dep in deps.iter_mut() {
+        if dep.version == "unspecified" {
+            if let Some(v) = managed.get(&dep.name) {
+                dep.version = v.clone();
+            }
+        }
+    }
+    Ok(deps)
+}
+
+fn parse_pom_dependency_blocks(xml: &str, props: &BTreeMap<String, String>) -> Vec<Dependency> {
+    let re_dep = Regex::new(r"(?s)<dependency>.*?</dependency>").unwrap();
+    let mut deps = Vec::new();
+
+    for cap in re_dep.captures_iter(xml) {
+        let block = cap.get(0).unwrap().as_str();
+        let group_id = capture_pom_tag(block, "groupId");
+        let artifact_id = capture_pom_tag(block, "artifactId");
+        if group_id.is_none() || artifact_id.is_none() {
+            continue;
+        }
+
+        let group_id = resolve_pom_props(&group_id.unwrap(), props);
+        let artifact_id = resolve_pom_props(&artifact_id.unwrap(), props);
+        let name = format!("{}:{}", group_id, artifact_id);
+
+        let version = capture_pom_tag(block, "version")
+            .map(|v| resolve_pom_props(&v, props))
+            .unwrap_or_else(|| "unspecified".to_string());
+
+        deps.push(Dependency {
+            ecosystem: Ecosystem::Java,
+            name,
+            version: normalize_java_version(&version),
+        });
+    }
+
+    deps
+}
+
+fn parse_pom_dependency_management(xml: &str, props: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    let re_mgmt = Regex::new(r"(?s)<dependencyManagement>.*?</dependencyManagement>").unwrap();
+    let mut managed = BTreeMap::new();
+
+    if let Some(cap) = re_mgmt.captures(xml) {
+        let block = cap.get(0).unwrap().as_str();
+        for dep in parse_pom_dependency_blocks(block, props) {
+            if dep.version != "unspecified" {
+                managed.insert(dep.name, dep.version);
+            }
+        }
+    }
+
+    managed
+}
+
+fn parse_pom_properties(xml: &str) -> BTreeMap<String, String> {
+    let mut props = BTreeMap::new();
+    let re_props = Regex::new(r"(?s)<properties>(.*?)</properties>").unwrap();
+    if let Some(cap) = re_props.captures(xml) {
+        let block = cap.get(1).unwrap().as_str();
+        let re_prop = Regex::new(r"(?s)<([A-Za-z0-9_.-]+)>\s*([^<]+)\s*</\1>").unwrap();
+        for pcap in re_prop.captures_iter(block) {
+            let key = pcap[1].to_string();
+            let value = pcap[2].trim().to_string();
+            props.insert(key, value);
+        }
+    }
+
+    let xml_no_deps = strip_dependency_blocks(xml);
+    if let Some(version) = capture_pom_tag(&xml_no_deps, "version") {
+        props.entry("project.version".to_string()).or_insert(version.clone());
+        props.entry("version".to_string()).or_insert(version);
+    }
+
+    props
+}
+
+fn parse_gradle_build(path: &Path) -> Result<Vec<Dependency>> {
+    let content = fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let re = Regex::new(r#"['"]([A-Za-z0-9_.-]+):([A-Za-z0-9_.-]+):([^'"]+)['"]"#).unwrap();
+
+    let mut deps = Vec::new();
+    for cap in re.captures_iter(&content) {
+        let group_id = cap[1].to_string();
+        let artifact_id = cap[2].to_string();
+        let version = normalize_java_version(&cap[3]);
+        if version == "unspecified" {
+            continue;
+        }
+        deps.push(Dependency {
+            ecosystem: Ecosystem::Java,
+            name: format!("{}:{}", group_id, artifact_id),
+            version,
+        });
+    }
+    Ok(deps)
+}
+
+fn parse_gradle_lockfile_inner(path: &Path) -> Result<Vec<Dependency>> {
+    let content = fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
+    let re = Regex::new(r"^([^:]+):([^:]+):([^=]+)=").unwrap();
+
+    let mut deps = Vec::new();
+    for raw_line in content.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let Some(cap) = re.captures(line) else { continue };
+        let group_id = cap[1].to_string();
+        let artifact_id = cap[2].to_string();
+        let version = normalize_java_version(&cap[3]);
+        if version == "unspecified" {
+            continue;
+        }
+        deps.push(Dependency {
+            ecosystem: Ecosystem::Java,
+            name: format!("{}:{}", group_id, artifact_id),
+            version,
+        });
+    }
+    Ok(deps)
+}
+
+fn normalize_java_version(raw: &str) -> String {
+    let v = raw.trim();
+    if v.is_empty()
+        || v.contains('$')
+        || v.contains('+')
+        || v.contains('[')
+        || v.contains(']')
+        || v.contains('(')
+        || v.contains(')')
+        || v.contains(',')
+    {
+        return "unspecified".to_string();
+    }
+    if v.eq_ignore_ascii_case("latest") || v.eq_ignore_ascii_case("release") {
+        return "latest".to_string();
+    }
+    v.to_string()
+}
+
+fn strip_dependency_management(xml: &str) -> String {
+    let re = Regex::new(r"(?s)<dependencyManagement>.*?</dependencyManagement>").unwrap();
+    re.replace_all(xml, "").to_string()
+}
+
+fn strip_dependency_blocks(xml: &str) -> String {
+    let re = Regex::new(r"(?s)<dependency>.*?</dependency>").unwrap();
+    re.replace_all(xml, "").to_string()
+}
+
+fn capture_pom_tag(text: &str, tag: &str) -> Option<String> {
+    let pattern = format!(r"<{}>\s*([^<]+)\s*</{}>", regex::escape(tag), regex::escape(tag));
+    let re = Regex::new(&pattern).ok()?;
+    re.captures(text)
+        .and_then(|cap| cap.get(1))
+        .map(|m| m.as_str().trim().to_string())
+}
+
+fn resolve_pom_props(value: &str, props: &BTreeMap<String, String>) -> String {
+    let re = Regex::new(r"\$\{([^}]+)\}").unwrap();
+    re.replace_all(value, |caps: &regex::Captures| {
+        props
+            .get(&caps[1])
+            .cloned()
+            .unwrap_or_else(|| caps[0].to_string())
+    })
+    .to_string()
+}
+
 fn find_requirements_files(project_dir: &Path) -> Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let re = Regex::new(r"^requirements.*\.txt$").unwrap();
@@ -410,6 +641,28 @@ fn find_requirements_files(project_dir: &Path) -> Result<Vec<PathBuf>> {
         }
         let Some(name) = path.file_name().and_then(|s| s.to_str()) else { continue };
         if re.is_match(name) {
+            out.push(path);
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
+fn find_gradle_lockfiles(project_dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    let lock_dir = project_dir.join("gradle").join("dependency-locks");
+    if !lock_dir.exists() || !lock_dir.is_dir() {
+        return Ok(out);
+    }
+    for entry in fs::read_dir(&lock_dir).with_context(|| format!("Failed to read {}", lock_dir.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|s| s.to_str()) else { continue };
+        if name.ends_with(".lockfile") {
             out.push(path);
         }
     }

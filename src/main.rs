@@ -116,7 +116,9 @@ async fn run_check(
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
     let ecosystem = if let Some(t) = r#type {
-        Ecosystem::from_str(t).ok_or_else(|| anyhow::anyhow!("Invalid ecosystem type. Use 'npm', 'pypi', or 'cargo'"))?
+        Ecosystem::from_str(t).ok_or_else(|| {
+            anyhow::anyhow!("Invalid ecosystem type. Use 'npm', 'pypi', 'cargo', or 'java'")
+        })?
     } else {
         Ecosystem::detect(&cwd).ok_or_else(|| {
             anyhow::anyhow!("Could not auto-detect ecosystem. Please specify --type")
@@ -238,6 +240,21 @@ async fn run_scan(path: Option<&str>) -> anyhow::Result<()> {
         }
     } else if filename == "Cargo.toml" {
         let deps = snapshot::parse_cargo_toml_file(&target_path)?;
+        for dep in deps {
+            dependencies.push((dep.name, dep.version, dep.ecosystem));
+        }
+    } else if filename == "pom.xml" {
+        let deps = snapshot::parse_pom_xml_file(&target_path)?;
+        for dep in deps {
+            dependencies.push((dep.name, dep.version, dep.ecosystem));
+        }
+    } else if filename == "build.gradle" || filename == "build.gradle.kts" {
+        let deps = snapshot::parse_gradle_build_file(&target_path)?;
+        for dep in deps {
+            dependencies.push((dep.name, dep.version, dep.ecosystem));
+        }
+    } else if filename == "gradle.lockfile" || filename.ends_with(".lockfile") {
+        let deps = snapshot::parse_gradle_lockfile(&target_path)?;
         for dep in deps {
             dependencies.push((dep.name, dep.version, dep.ecosystem));
         }
