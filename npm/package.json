@@ -5,7 +5,10 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Swek09/DepSentry.git"
+    "url": "git+https://github.com/Swek09/DepSentry.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "bin": {
     "depsentry": "bin/depsentry.js"
