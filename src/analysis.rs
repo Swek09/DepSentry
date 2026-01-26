@@ -237,7 +237,7 @@ impl Analyzer {
         // 2. Standard File Analysis
         if let Some(ext) = path.extension() {
              let ext_str = ext.to_string_lossy();
-             if !["js", "py", "sh", "ts"].contains(&ext_str.as_ref()) && filename != "package.json" {
+             if !["js", "py", "sh", "ts", "rs"].contains(&ext_str.as_ref()) && filename != "package.json" {
                  return findings;
              }
         } else if filename != "package.json" {

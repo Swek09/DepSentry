@@ -43,7 +43,7 @@ pub fn query_osv_vulns(deps: &[Dependency]) -> Result<Vec<OsvVuln>> {
     }
 
     let client = Client::builder()
-        .user_agent("depsentry-firewall/0.2.1")
+        .user_agent("depsentry-firewall/0.2.2")
         .build()
         .context("Failed to create HTTP client")?;
 

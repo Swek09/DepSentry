@@ -34,6 +34,7 @@ jobs:
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $msi = Get-ChildItem -Path target/wix/*.msi | Select-Object -First 1
           cp $msi.FullName release-assets/DepSentry-Installer-x64.msi
+          cp target/release/depsentry.exe release-assets/depsentry-win-x64.exe
 
       - name: Upload Windows Assets
         uses: softprops/action-gh-release@v1
@@ -41,6 +42,7 @@ jobs:
         with:
           files: |
             release-assets/DepSentry-Installer-x64.msi
+            release-assets/depsentry-win-x64.exe
 
   # ====================================================
   # 2. LINUX (DEB + TAR.GZ)
@@ -71,6 +73,7 @@ jobs:
           mkdir -p release-assets
           tar -czvf release-assets/DepSentry-Linux-x64.tar.gz -C target/release depsentry
           cp target/debian/*.deb release-assets/DepSentry-Linux-x64.deb
+          cp target/release/depsentry release-assets/depsentry-linux-x64
 
       - name: Upload Linux Assets
         uses: softprops/action-gh-release@v1
@@ -79,3 +82,30 @@ jobs:
           files: |
             release-assets/DepSentry-Linux-x64.tar.gz
             release-assets/DepSentry-Linux-x64.deb
+            release-assets/depsentry-linux-x64
+
+  # ====================================================
+  # 3. NPM PUBLISH
+  # ====================================================
+  publish-npm:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    needs:
+      - release-windows
+      - release-linux
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Set package version from tag
+        working-directory: npm
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          npm version --no-git-tag-version "$VERSION"
+      - name: Publish to npm
+        working-directory: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

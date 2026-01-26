@@ -231,6 +231,16 @@ async fn run_scan(path: Option<&str>) -> anyhow::Result<()> {
             };
             dependencies.push((name, ver, Ecosystem::Pypi));
         }
+    } else if filename == "Cargo.lock" {
+        let deps = snapshot::parse_cargo_lock_file(&target_path)?;
+        for dep in deps {
+            dependencies.push((dep.name, dep.version, dep.ecosystem));
+        }
+    } else if filename == "Cargo.toml" {
+        let deps = snapshot::parse_cargo_toml_file(&target_path)?;
+        for dep in deps {
+            dependencies.push((dep.name, dep.version, dep.ecosystem));
+        }
     } else {
         anyhow::bail!("Unsupported manifest file: {}", filename);
     }
@@ -242,9 +252,14 @@ async fn run_scan(path: Option<&str>) -> anyhow::Result<()> {
 
     for (name, ver, ecosystem) in dependencies {
         println!("--------------------------------------------------");
-        println!("Analyzing {}@{}...", name.blue().bold(), ver);
+        let version_arg = match ver.as_str() {
+            "latest" | "unspecified" => None,
+            _ => Some(ver.as_str()),
+        };
+        let display_ver = version_arg.unwrap_or("latest");
+        println!("Analyzing {}@{}...", name.blue().bold(), display_ver);
 
-        match fetcher.download(&name, Some(&ver), &ecosystem).await {
+        match fetcher.download(&name, version_arg, &ecosystem).await {
             Ok((path, metadata)) => {
                 match analyzer.scan(&path, &metadata, &ecosystem).await {
                     Ok(result) => {

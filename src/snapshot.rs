@@ -148,6 +148,14 @@ pub fn collect_snapshot_inputs(project_dir: &Path) -> Result<SnapshotInputs> {
     })
 }
 
+pub fn parse_cargo_lock_file(path: &Path) -> Result<Vec<Dependency>> {
+    parse_cargo_lock(path)
+}
+
+pub fn parse_cargo_toml_file(path: &Path) -> Result<Vec<Dependency>> {
+    parse_cargo_toml(path)
+}
+
 fn parse_cargo_lock(path: &Path) -> Result<Vec<Dependency>> {
     // Minimal parser: scan [[package]] sections for name/version pairs.
     let content = fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))?;
@@ -212,7 +220,12 @@ fn parse_cargo_toml(path: &Path) -> Result<Vec<Dependency>> {
     for raw_line in content.lines() {
         let line = raw_line.trim();
         if line.starts_with('[') {
-            in_deps = line == "[dependencies]";
+            let section = line.trim_start_matches('[').trim_end_matches(']');
+            in_deps = section == "dependencies"
+                || section == "dev-dependencies"
+                || section == "build-dependencies"
+                || section == "workspace.dependencies"
+                || section.ends_with(".dependencies");
             continue;
         }
         if !in_deps || line.is_empty() || line.starts_with('#') {

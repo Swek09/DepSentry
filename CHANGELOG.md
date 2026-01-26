@@ -13,3 +13,9 @@
 ## v0.2.1
 
 - Fixed GitHub release workflow: build with `ds-alias`, avoid `assets/` directory collision, and prevent rebuild in `cargo deb`.
+
+## v0.2.2
+
+- Added Cargo support for `depsentry check` and `depsentry scan` (Cargo.toml/Cargo.lock).
+- Added npm package wrapper with GitHub Release binary downloads.
+- Updated release pipeline to publish npm package and include raw binaries.

@@ -1,0 +1,31 @@
+{
+  "name": "@swek09/depsentry",
+  "version": "0.2.2",
+  "description": "DepSentry CLI (prebuilt binaries)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Swek09/DepSentry.git"
+  },
+  "bin": {
+    "depsentry": "bin/depsentry.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "os": [
+    "win32",
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/depsentry.js",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

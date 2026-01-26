@@ -20,7 +20,7 @@ DepSentry has two “tracks”:
 
 ### 1) On-demand scanning
 - `depsentry check` — scan **one package** (remote) or a **local directory**
-- `depsentry scan` — scan **dependencies from a manifest** (basic parsing)
+- `depsentry scan` — scan **dependencies from a manifest** (basic parsing, npm/pypi/cargo)
 
 ### 2) Continuous supervision
 - `depsentry firewall ...` — a local daemon + project registry (stage 0)
@@ -55,11 +55,12 @@ cargo build --release
 Use this when you want to vet one dependency quickly.
 
 ```bash
-# Auto-detect ecosystem (NPM / PyPI) if possible
+# Auto-detect ecosystem (NPM / PyPI / Cargo) if possible
 depsentry check axios
 
 # Explicit ecosystem + version
 depsentry check requests --type pypi --version 2.31.0
+depsentry check serde --type cargo --version 1.0.197
 
 # Save JSON report (audit.json)
 depsentry check axios --json
@@ -82,6 +83,8 @@ Use this in CI/CD to audit dependencies from a manifest.
 depsentry scan --path ./package.json
 # or
 depsentry scan --path ./requirements.txt
+# or
+depsentry scan --path ./Cargo.lock
 ```
 
 **Behavior**
