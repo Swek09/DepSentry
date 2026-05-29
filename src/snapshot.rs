@@ -518,11 +518,13 @@ fn parse_pom_properties(xml: &str) -> BTreeMap<String, String> {
     let re_props = Regex::new(r"(?s)<properties>(.*?)</properties>").unwrap();
     if let Some(cap) = re_props.captures(xml) {
         let block = cap.get(1).unwrap().as_str();
-        let re_prop = Regex::new(r"(?s)<([A-Za-z0-9_.-]+)>\s*([^<]+)\s*</\1>").unwrap();
+        let re_prop = Regex::new(r"(?s)<([A-Za-z0-9_.-]+)>\s*([^<]+)\s*</([A-Za-z0-9_.-]+)>").unwrap();
         for pcap in re_prop.captures_iter(block) {
-            let key = pcap[1].to_string();
-            let value = pcap[2].trim().to_string();
-            props.insert(key, value);
+            if pcap[1] == pcap[3] {
+                let key = pcap[1].to_string();
+                let value = pcap[2].trim().to_string();
+                props.insert(key, value);
+            }
         }
     }
 

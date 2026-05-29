@@ -6,6 +6,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use anyhow::Result;
 use crate::ecosystem::Ecosystem;
 use rayon::prelude::*;
@@ -237,8 +238,8 @@ impl Analyzer {
 
         // 2. Standard File Analysis
         if let Some(ext) = path.extension() {
-             let ext_str = ext.to_string_lossy();
-             if !["js", "py", "sh", "ts", "rs", "java", "kt", "class"].contains(&ext_str.as_ref())
+             let ext_str = ext.to_string_lossy().to_lowercase();
+             if !["js", "py", "sh", "ts", "rs", "java", "kt", "class", "bat", "cmd", "ps1"].contains(&ext_str.as_str())
                 && filename != "package.json"
              {
                  return findings;
@@ -283,8 +284,8 @@ impl Analyzer {
                 });
         }
         
-        let re_ip = Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b").unwrap();
-        for cap in re_ip.find_iter(&text) {
+        static RE_IP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}\b").unwrap());
+        for cap in RE_IP.find_iter(&text) {
              let ip = cap.as_str();
              // Ignore versions appearing as IPs (common in comments or version constants)
              // Ignore localhost

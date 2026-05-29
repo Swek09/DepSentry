@@ -6,6 +6,8 @@
 
 use std::path::{Path, PathBuf};
 use std::io::Cursor;
+use std::sync::LazyLock;
+use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use reqwest::Client;
 use serde_json::Value;
@@ -33,6 +35,7 @@ impl Fetcher {
         Self {
             client: Client::builder()
                 .user_agent("depsentry-security-scanner/0.2.3")
+                .timeout(Duration::from_secs(30))
                 .build()
                 .expect("Failed to create HTTP client"),
         }
@@ -314,17 +317,19 @@ fn parse_maven_name(name: &str) -> Result<(String, String)> {
 }
 
 fn parse_maven_latest_version(xml: &str) -> Option<String> {
-    let re_latest = Regex::new(r"<latest>\s*([^<\s]+)\s*</latest>").ok()?;
-    if let Some(cap) = re_latest.captures(xml) {
+    static RE_LATEST: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<latest>\s*([^<\s]+)\s*</latest>").unwrap());
+    static RE_RELEASE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<release>\s*([^<\s]+)\s*</release>").unwrap());
+    static RE_VERSION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<version>\s*([^<\s]+)\s*</version>").unwrap());
+
+    if let Some(cap) = RE_LATEST.captures(xml) {
         return Some(cap[1].to_string());
     }
-    let re_release = Regex::new(r"<release>\s*([^<\s]+)\s*</release>").ok()?;
-    if let Some(cap) = re_release.captures(xml) {
+    if let Some(cap) = RE_RELEASE.captures(xml) {
         return Some(cap[1].to_string());
     }
-    let re_version = Regex::new(r"<version>\s*([^<\s]+)\s*</version>").ok()?;
+    
     let mut versions = Vec::new();
-    for cap in re_version.captures_iter(xml) {
+    for cap in RE_VERSION.captures_iter(xml) {
         versions.push(cap[1].to_string());
     }
     versions.last().cloned()
